@@ -1,0 +1,84 @@
+pipeline {
+    agent any
+    tools {maven 'Maven-3.0.5'}
+    stages {
+        stage('Pipeline Parallel Job') {
+            steps {
+                echo 'Welcome to Pipeline Parallel Jobs'
+            }
+        }
+        stage('Parallel Checkout'){
+            parallel{
+                stage('Parallel checkout mvn-flipkart'){
+                    steps{
+                        checkout([$class: 'GitSCM', branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[credentialsId: 'github', url: 'https://github.com/imdad789/mvn-flipkart.git']]])
+                    }
+                }
+                stage('Parallel checkout mvn-amazon'){
+                    agent {label 'jenkins-node1'}
+                    steps{
+                        checkout changelog: false, poll: false, scm: [$class: 'GitSCM', branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[credentialsId: 'github', url: 'https://github.com/imdad789/mvn-amazon.git']]]
+                    }
+                }
+            }
+        }
+        stage('Build Parallely'){
+            parallel{
+                stage('Build mvn-flipkar'){
+                  
+                    steps{
+                     sh 'mvn package -f pom.xml'   
+                    }
+                }
+                stage('Build mvn-amazon'){
+                    agent {label 'jenkins-node1'}
+                    steps{
+                        sh 'mvn package -f pom.xml'
+                    }
+                }
+            }
+        }
+        stage('Approvals to Deployment in DEV and STAGE envs'){
+            steps{
+                    echo "Taking approval from Manager to deploy wars"
+                    timeout(time: 7, unit: 'DAYS') {
+                        input message: 'Do you want to deploy wars in stage n DEV env?', submitter: 'imdad'
+                                                    }
+                }
+        }
+        stage('Deployment'){
+            parallel{
+                stage('Dev Deployment'){
+            
+                    steps{
+                        deploy adapters: [tomcat9(credentialsId: 'tomcat', path: '', url: 'http://34.72.103.235:8090/')], contextPath: 'flipkart', onFailure: false, war: 'target/*.war'
+                    }
+                
+                stage('Stage Deployment'){
+                    agent {label 'jenkins-node1'}
+                    steps{
+                        deploy adapters: [tomcat9(credentialsId: 'tomcat', path: '', url: 'http://34.67.254.36:8090/')], contextPath: 'amazon', onFailure: false, war: 'target/*.war'
+                    }
+                }
+            }
+        }
+        stage ('Nexus Approve') {
+                    steps{
+                    echo "Taking approval from Manager for Nexus Repo"
+                    timeout(time: 7, unit: 'DAYS') {
+                    input message: 'Do you approve to deploy war to NEXUS REPO?', submitter: 'admin'
+                    }
+            }
+        }
+        stage ('Nexus Atrifact Repository Parallely'){
+            parallel{
+                stage('Nexus mvn-flipkart'){
+                        steps{
+                                nexusArtifactUploader artifacts: [[artifactId: 'flipkart', classifier: '', file: 'target/flipkart.war', type: 'war']], credentialsId: 'admin-nexus', groupId: 'com.tcs', nexusUrl: '34.67.254.36:8081', nexusVersion: 'nexus3', protocol: 'http', repository: 'maven-pipeline', version: '1.0-SNAPSHOT'
+                            }
+                }
+            }
+        }
+    }
+}
+
