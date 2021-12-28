@@ -15,7 +15,6 @@ pipeline {
                     }
                 }
                 stage('Parallel checkout mvn-amazon'){
-                    agent {label 'jenkins-node1'}
                     steps{
                         checkout changelog: false, poll: false, scm: [$class: 'GitSCM', branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[credentialsId: 'github', url: 'https://github.com/imdad789/mvn-amazon.git']]]
                     }
