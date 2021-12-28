@@ -71,15 +71,11 @@ pipeline {
                     }
             }
         }
-        stage ('Nexus Atrifact Repository Parallely'){
-            parallel{
-                stage('Nexus mvn-flipkart'){
+        stage ('Nexus Atrifact Repository only mvn-flipkart'){
                         steps{
                                 nexusArtifactUploader artifacts: [[artifactId: 'flipkart', classifier: '', file: 'target/flipkart.war', type: 'war']], credentialsId: 'admin-nexus', groupId: 'com.tcs', nexusUrl: '34.67.254.36:8081', nexusVersion: 'nexus3', protocol: 'http', repository: 'maven-pipeline', version: '1.0-SNAPSHOT'
                             }
                 }
-            }
-        }
     }
 }
 
